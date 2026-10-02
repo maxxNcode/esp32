@@ -30,12 +30,12 @@ The Project Overview page asks you to **add Firebase to your app** with icons fo
 > If your teacher wants it, do it as below. Otherwise skip to 1.3.
 
 1. Click the **Android** icon.
-2. **Android package name:** `appinventor.ai_YOURUSERNAME.Activity7`
-   (YOURUSERNAME = the part of your Gmail before `@`, for example `appinventor.ai_juan.Activity7`).
-   The name can't contain dots or dashes. If your username has them, change them to `_`.
-3. **App nickname:** `Activity7`. Leave **SHA-1** empty. Click **Register app**.
-4. **Download google-services.json:** you can download it, but App Inventor **does not use it**. Click **Next**.
-5. **Add Firebase SDK:** this is for Android Studio only. Click **Next**, then **Continue to console**.
+2. **Android package name:** `com.elemsys.act7`
+3. **App nickname:** `Activity7`. Click **Register app**.
+4. **Download and then add config file:** App Inventor **does not use** `google-services.json`, so you can skip the download. Click **Next**.
+5. **Add Firebase SDK:** this is for Android Studio only. Click **Next**.
+6. **Next steps:** click **Continue to console**.
+7. Ignore the purple **"Try it" (AI coding agent)** box.
 
 ### 1.3 Create the Realtime Database
 1. In the left menu, open **Build** (in newer consoles, **Databases & Storage**) → **Realtime Database**.
@@ -97,7 +97,7 @@ Test mode stops working after 30 days. If you get "permission denied" later, go 
 2. On the phone, open **MIT AI2 Companion** and tap **scan QR code** (or type the 6-letter code), then **connect with code**.
 3. The app appears on the phone. Press **LED1 ON**.
 4. In the Firebase console, `LED1` should turn to `1` (it flashes yellow or green). ✅
-   If not, check the URL, token and ProjectBucket (step 2.3).
+   If not, check FirebaseURL, FirebaseToken and ProjectBucket (step 2.3).
 
 ### 2.5 Install it as a real Android app (.apk)
 1. Choose **Build → Android App (.apk)**. Wait for it to finish (1–2 minutes).

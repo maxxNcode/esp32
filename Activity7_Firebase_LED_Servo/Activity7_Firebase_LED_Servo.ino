@@ -54,6 +54,7 @@ int lastAllLed   = -1;  // -1 = not read yet
 int lastServo    = -1;
 int ledState[4]  = {-1, -1, -1, -1};
 String btLine;
+unsigned long lastBtByte = 0;
 
 unsigned long lastPoll = 0;
 const unsigned long POLL_MS = 300;
@@ -112,24 +113,48 @@ void applyBluetoothCommand(String key, int value) {
   }
 
   SerialBT.println("OK " + key + ":" + String(value));
-  if (firebaseOnline()) Firebase.RTDB.updateNode(&fbdo, "/", &update);
+  // Save to Firebase too, otherwise the next Firebase read would undo it
+  if (firebaseOnline() && !Firebase.RTDB.updateNode(&fbdo, "/", &update)) {
+    Serial.print("Firebase write failed: ");
+    Serial.println(fbdo.errorReason());
+  }
 }
 
-// Read Bluetooth characters until a full line "KEY:VALUE" arrives.
+void processBtLine() {
+  btLine.replace("\\n", "");  // in case "\n" arrived as two characters
+  btLine.trim();
+  if (btLine.length() == 0) return;
+  Serial.println("BT received: " + btLine);
+  int sep = btLine.indexOf(':');
+  if (sep > 0) {
+    applyBluetoothCommand(btLine.substring(0, sep), btLine.substring(sep + 1).toInt());
+  } else {
+    Serial.println("Bad Bluetooth command (expected KEY:VALUE)");
+  }
+  btLine = "";
+}
+
+// Read Bluetooth characters. A command ends with a newline, ';', or a
+// 100 ms pause, so it works even if the app doesn't send a newline.
 void handleBluetooth() {
   while (SerialBT.available()) {
     char c = SerialBT.read();
-    if (c == '\n' || c == '\r') {
-      btLine.trim();
-      int sep = btLine.indexOf(':');
-      if (sep > 0) {
-        Serial.println("BT: " + btLine);
-        applyBluetoothCommand(btLine.substring(0, sep), btLine.substring(sep + 1).toInt());
-      }
-      btLine = "";
+    lastBtByte = millis();
+    if (c == '\n' || c == '\r' || c == ';') {
+      processBtLine();
     } else if (btLine.length() < 32) {
       btLine += c;
     }
+  }
+  if (btLine.length() > 0 && millis() - lastBtByte > 100) processBtLine();
+}
+
+// Prints when a phone connects/disconnects over Bluetooth.
+void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
+  if (event == ESP_SPP_SRV_OPEN_EVT) {
+    Serial.printf("Bluetooth: phone CONNECTED (free heap %u bytes)\n", ESP.getFreeHeap());
+  } else if (event == ESP_SPP_CLOSE_EVT) {
+    Serial.println("Bluetooth: phone disconnected");
   }
 }
 
@@ -194,6 +219,7 @@ void setup() {
   servo.attach(SERVO_PIN, 500, 2400);
   servo.write(0);
 
+  SerialBT.register_callback(btCallback);
   SerialBT.begin(BT_NAME);
   Serial.println("Bluetooth ready: " BT_NAME);
 
@@ -211,6 +237,10 @@ void setup() {
   } else {
     Serial.println("\nNo WiFi - Bluetooth only (will keep retrying WiFi)");
   }
+
+  // Smaller SSL buffers leave enough memory for Bluetooth + Wi-Fi together
+  fbdo.setBSSLBufferSize(4096, 1024);
+  fbdo.setResponseSize(2048);
 
   config.database_url = DATABASE_URL;
   config.signer.tokens.legacy_token = DATABASE_SECRET;

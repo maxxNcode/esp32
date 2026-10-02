@@ -1,4 +1,4 @@
-# Activity 3: ESP32 + Firebase + MIT App Inventor
+# Activity 7: ESP32 + Firebase + MIT App Inventor
 
 ```
  MIT App Inventor app  --->  Firebase Realtime DB  --->  ESP32  --->  LED1-4 + Servo
@@ -26,7 +26,7 @@ Firebase, and the ESP32 reads Firebase about 3 times a second.
 
 1. Go to https://console.firebase.google.com → **Add project**.
 2. **Build → Realtime Database → Create database** → choose **Start in test mode**.
-3. Copy the database URL, e.g. `https://activity3-1234-default-rtdb.firebaseio.com/`.
+3. Copy the database URL, e.g. `https://activity7-1234-default-rtdb.firebaseio.com/`.
 4. Get the secret: **⚙ Project settings → Service accounts → Database secrets → Show**.
 5. Optional: add the starting data. Click **⋮ → Import JSON** and import:
 
@@ -40,7 +40,7 @@ Firebase, and the ESP32 reads Firebase about 3 times a second.
 2. Library Manager → install:
    - **Firebase Arduino Client Library for ESP8266 and ESP32** (by Mobizt)
    - **ESP32Servo**
-3. Open `Activity3_Firebase_LED_Servo.ino` and fill in:
+3. Open `Activity7_Firebase_LED_Servo.ino` and fill in:
    - `WIFI_SSID`, `WIFI_PASSWORD` (must be **2.4 GHz** Wi-Fi)
    - `DATABASE_URL`: the URL **without** `https://` and without the trailing `/`
    - `DATABASE_SECRET`: the secret from step 2.4
@@ -50,10 +50,10 @@ Firebase, and the ESP32 reads Firebase about 3 times a second.
 
 ### Fast way: import the ready-made project
 
-1. Download `Activity3.aia` from this folder.
-2. Go to https://ai2.appinventor.mit.edu → **Projects → Import project (.aia) from my computer** → choose `Activity3.aia`.
+1. Download `Activity7.aia` from this folder.
+2. Go to https://ai2.appinventor.mit.edu → **Projects → Import project (.aia) from my computer** → choose `Activity7.aia`.
 3. In the **Designer**, click **FirebaseDB1** (under Non-visible components) and set:
-   - **FirebaseURL** → *Use Custom* → your database URL (e.g. `https://activity3-1234-default-rtdb.firebaseio.com/`)
+   - **FirebaseURL** → *Use Custom* → your database URL (e.g. `https://activity7-1234-default-rtdb.firebaseio.com/`)
    - **FirebaseToken** → your database secret
    - **ProjectBucket** → leave it empty
 4. Done. All 13 buttons and their blocks are already set up. Connect with **AI Companion**, or use **Build → Android App (.apk)**.
@@ -76,7 +76,7 @@ The rest of this section shows how to build the same app by hand.
 | btnServo90 / btnServo180 / btnServo0 | SERVO 90 / SERVO 180 / SERVO 0 |
 
 - **FirebaseDB1** (Palette → *Experimental* → FirebaseDB). Its properties:
-  - **FirebaseURL**: your database URL, e.g. `https://activity3-1234-default-rtdb.firebaseio.com/`
+  - **FirebaseURL**: your database URL, e.g. `https://activity7-1234-default-rtdb.firebaseio.com/`
   - **FirebaseToken**: the database secret from step 2.4
   - **ProjectBucket**: **clear it (leave empty)**. If you leave text here, the app writes
     to `/<bucket>/LED1`, and the ESP32 looks for `/LED1` and won't find it.

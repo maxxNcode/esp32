@@ -1,5 +1,5 @@
 /*
-  Activity 3 - ESP32 + Firebase Realtime Database + MIT App Inventor
+  Activity 7 - ESP32 + Firebase Realtime Database + MIT App Inventor
 
   The MIT App Inventor app writes values to Firebase:
       LED1, LED2, LED3, LED4  -> 0 (off) or 1 (on)
@@ -23,7 +23,7 @@
 #define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
 
 // Realtime Database URL, without "https://" and without the trailing "/"
-// e.g. "activity3-1234-default-rtdb.firebaseio.com"
+// e.g. "activity7-1234-default-rtdb.firebaseio.com"
 #define DATABASE_URL    "YOUR_PROJECT-default-rtdb.firebaseio.com"
 
 // Project settings > Service accounts > Database secrets

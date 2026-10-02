@@ -1,8 +1,8 @@
-"""Builds Activity3.aia - the MIT App Inventor project for Activity 3.
-Run:  python3 make_aia.py   -> creates Activity3.aia next to this script."""
+"""Builds Activity7.aia - the MIT App Inventor project for Activity 7.
+Run:  python3 make_aia.py   -> creates Activity7.aia next to this script."""
 import json, os, random, zipfile
 
-PKG = "appinventor/ai_student/Activity3"
+PKG = "appinventor/ai_student/Activity7"
 here = os.path.dirname(os.path.abspath(__file__))
 
 # (button name, text, firebase tag, value) - laid out 2 per row like the whiteboard
@@ -28,7 +28,7 @@ form = {
     "authURL": ["ai2.appinventor.mit.edu"], "YaVersion": "208", "Source": "Form",
     "Properties": {
         "$Name": "Screen1", "$Type": "Form", "$Version": "27",
-        "AppName": "Activity3", "Title": "Activity 3 - ESP32 Control",
+        "AppName": "Activity7", "Title": "Activity 7 - ESP32 Control",
         "AlignHorizontal": "3", "Sizing": "Responsive", "Uuid": "0",
         "$Components": [
             {"$Name": "lblTitle", "$Type": "Label", "$Version": "5",
@@ -95,15 +95,15 @@ bky = ('<xml xmlns="http://www.w3.org/1999/xhtml">\n'
        + error_block
        + '  <yacodeblocks ya-version="208" language-version="33"></yacodeblocks>\n</xml>\n')
 
-props = """main=appinventor.ai_student.Activity3.Screen1
-name=Activity3
+props = """main=appinventor.ai_student.Activity7.Screen1
+name=Activity7
 assets=../assets
 source=../src
 build=../build
 versioncode=1
 versionname=1.0
 useslocation=False
-aname=Activity3
+aname=Activity7
 sizing=Responsive
 showlistsasjson=True
 tutorialurl=
@@ -115,7 +115,7 @@ color.primary.dark=&HFF303F9F
 color.accent=&HFFFF4081
 """
 
-out = os.path.join(here, "Activity3.aia")
+out = os.path.join(here, "Activity7.aia")
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     z.writestr("youngandroidproject/project.properties", props)
     z.writestr(f"src/{PKG}/Screen1.scm", scm)

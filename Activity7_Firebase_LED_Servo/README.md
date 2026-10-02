@@ -11,8 +11,13 @@
 ```
 
 - **SCAN BLUETOOTH** in the app lists paired devices. Pick **ESP32_Activity7** and the app shows **Bluetooth: Connected**.
-- While Bluetooth is connected, buttons go **straight to the ESP32**, and the ESP32 copies the value into Firebase.
-- When Bluetooth isn't connected, buttons write to **Firebase**, and the ESP32 reads it over Wi-Fi.
+- **Everything stays in sync:**
+  - Every button is sent **by Bluetooth** (when connected) **and saved online** to Firebase at the same time.
+  - The ESP32 also writes each Bluetooth command to Firebase. If the ESP32 has no Wi-Fi at that moment,
+    it remembers the change and uploads it once it's back online, so old database values never undo it.
+  - **ALL LED** buttons also save LED1–LED4 online, so the database matches right away.
+  - The app reads the database every 1.5 s and shows the **live state**
+    (`LED1: 1   LED2: 0 ...   SERVO: 90`), whether the change came from Bluetooth, the app or the Firebase console.
 
 You need: a Google account, a laptop with Arduino IDE, an Android phone, an ESP32,
 4 LEDs + 4 × 220 Ω resistors, 1 servo (SG90), a breadboard, jumper wires, and 2.4 GHz Wi-Fi
@@ -99,9 +104,9 @@ component, which shows a black screen with non-US databases like `asia-southeast
      It must be **your** database URL **with** the `/` at the end.
    - `initialize global SECRET to ""`. Leave it **empty** while the database rules are in test mode or public (step 1.6).
      If your rules need a login, paste the database secret here instead.
-3. That's all. Every button calls `sendValue tag value`. If Bluetooth is connected, it sends `LED1:1` by Bluetooth;
-   otherwise it writes to Firebase. The status label shows `Saved: 1` when Firebase accepts the value,
-   or `Error 401: ...` (wrong secret or rules) and `Error 404` (wrong URL).
+3. That's all. Every button calls `sendValue tag value`. It sends `LED1:1;` by Bluetooth (if connected) **and**
+   saves the value online with `saveOnline`. `Clock1` reads the whole database every 1.5 s into `lblState`. The status label shows `Saved: 1` when Firebase accepts the value,
+   or `Online error 401: ...` (wrong secret or rules) and `Online error 404` (wrong URL).
 
 ### 2.4 Test with AI Companion
 1. On the website, choose **Connect → AI Companion**. A QR code appears.
@@ -125,8 +130,9 @@ component, which shows a black screen with non-US databases like `asia-southeast
 3. Open the Activity7 app and tap **SCAN BLUETOOTH**.
    - The first time, Android asks for **Nearby devices** permission. Tap **Allow**.
 4. Choose **ESP32_Activity7** from the list. The label changes to **Bluetooth: Connected** (green).
-5. Press **LED1 ON**. The status shows `Sent by Bluetooth: LED1 = 1`, LED1 turns on, and Firebase updates too.
-6. Tap **DISCONNECT** to go back to Firebase (IoT) mode.
+5. Press **LED1 ON**. The status shows `Sending LED1 = 1 (Bluetooth + Online)`, then `Saved online: 1`. LED1 turns on,
+   Firebase shows `LED1: 1`, and the live state line in the app shows `LED1: 1`.
+6. Tap **DISCONNECT** to use online only. The buttons still work through Firebase, and the state line keeps updating.
 
 ---
 
@@ -207,9 +213,10 @@ component, which shows a black screen with non-US databases like `asia-southeast
 | ESP32_Activity7 not in SCAN BLUETOOTH list | Pair it first in the phone's **Settings → Bluetooth** (2.6), and allow **Nearby devices** permission |
 | `Bluetooth: Connection failed` | Restart the ESP32, make sure no other phone is connected to it, then try again |
 | `BluetoothSerial.h` error / Bluetooth not working | You need a **classic ESP32** (ESP32-WROOM/DevKit). ESP32-S3/C3 don't have Bluetooth Classic |
+| State line stays on `Loading database...` | The phone has no internet, or FIREBASE_URL is wrong |
 | App shows a black screen | You have the old version with FirebaseDB. Import the new `Activity7.aia` and rebuild the .apk |
-| App says `Error 401` | Database rules expired (see 1.6), or SECRET is wrong |
-| App says `Error 404` | FIREBASE_URL is wrong, or it's missing the `/` at the end |
+| App says `Online error 401` | Database rules expired (see 1.6), or SECRET is wrong |
+| App says `Online error 404` | FIREBASE_URL is wrong, or it's missing the `/` at the end |
 | AI Companion won't connect | Put the phone and laptop on the same Wi-Fi, or use **Connect → USB** |
 | Android won't install the .apk | Allow **Install unknown apps** for your browser or file manager |
 | ESP32 restarts when the servo moves | Power the servo from a separate 5V supply and connect the grounds |

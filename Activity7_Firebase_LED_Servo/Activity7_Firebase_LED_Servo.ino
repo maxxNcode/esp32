@@ -10,8 +10,10 @@
       ALL_LED                 -> 0 (all off) or 1 (all on)
       SERVO                   -> 0, 90 or 180 (angle in degrees)
 
-  Bluetooth commands are also written to Firebase, so the database always
-  matches the real LEDs/servo.
+  Sync: the app sends every button by Bluetooth AND online. The ESP32 also
+  writes each Bluetooth command to Firebase. If the ESP32 is offline at that
+  moment, it remembers the change and uploads it as soon as Wi-Fi is back
+  (before reading Firebase), so old database values never undo a Bluetooth change.
 
   Libraries (Arduino IDE > Tools > Manage Libraries):
     - "Firebase Arduino Client Library for ESP8266 and ESP32" by Mobizt
@@ -55,6 +57,7 @@ int lastServo    = -1;
 int ledState[4]  = {-1, -1, -1, -1};
 String btLine;
 unsigned long lastBtByte = 0;
+bool pendingSync = false;  // a Bluetooth change still needs to be saved to Firebase
 
 unsigned long lastPoll = 0;
 const unsigned long POLL_MS = 300;
@@ -113,9 +116,29 @@ void applyBluetoothCommand(String key, int value) {
   }
 
   SerialBT.println("OK " + key + ":" + String(value));
-  // Save to Firebase too, otherwise the next Firebase read would undo it
-  if (firebaseOnline() && !Firebase.RTDB.updateNode(&fbdo, "/", &update)) {
-    Serial.print("Firebase write failed: ");
+
+  // Save to Firebase too, otherwise the next Firebase read would undo it.
+  // If offline (or the write fails), upload the full state later.
+  if (!firebaseOnline() || !Firebase.RTDB.updateNode(&fbdo, "/", &update)) {
+    Serial.println("Offline - Bluetooth change will be synced to Firebase later");
+    pendingSync = true;
+  }
+}
+
+// Upload the ESP32's current LEDs/servo to Firebase (after being offline).
+void pushStateToFirebase() {
+  FirebaseJson state;
+  for (int i = 0; i < 4; i++) {
+    if (ledState[i] >= 0) state.set("LED" + String(i + 1), ledState[i]);
+  }
+  if (lastAllLed >= 0) state.set("ALL_LED", lastAllLed);
+  if (lastServo >= 0) state.set("SERVO", lastServo);
+
+  if (Firebase.RTDB.updateNode(&fbdo, "/", &state)) {
+    Serial.println("Synced Bluetooth changes to Firebase");
+    pendingSync = false;
+  } else {
+    Serial.print("Sync failed: ");
     Serial.println(fbdo.errorReason());
   }
 }
@@ -254,5 +277,7 @@ void loop() {
   if (millis() - lastPoll < POLL_MS) return;
   lastPoll = millis();
 
-  if (firebaseOnline()) pollFirebase();
+  if (!firebaseOnline()) return;
+  if (pendingSync) pushStateToFirebase();  // local Bluetooth changes win
+  else pollFirebase();
 }

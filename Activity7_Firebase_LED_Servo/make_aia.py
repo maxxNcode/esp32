@@ -1,9 +1,10 @@
 """Builds Activity7.aia - the MIT App Inventor project for Activity 7.
 Run:  python3 make_aia.py   -> creates Activity7.aia next to this script.
 
-When Bluetooth is connected, buttons send "TAG:VALUE\n" to the ESP32 over
-Bluetooth (the ESP32 copies it into Firebase). Otherwise the app writes to
-Firebase with the Web component and the Firebase REST API (PUT <url><tag>.json). This works with every database region, unlike the
+Every button sends "TAG:VALUE;" to the ESP32 over Bluetooth (when connected)
+AND saves the value to Firebase with the Web component and the REST API
+(PUT <url><tag>.json), so Bluetooth, online and the database stay in sync.
+The app reads the whole database every 1.5 s and shows the live state. This works with every database region, unlike the
 FirebaseDB component (black screen with *.firebasedatabase.app URLs)."""
 import json, os, random, zipfile
 
@@ -56,7 +57,11 @@ form = {
              "Width": "-2", "Uuid": uid(), "$Components": cells},
             {"$Name": "lblStatus", "$Type": "Label", "$Version": "5",
              "Text": "Ready", "Uuid": uid()},
+            {"$Name": "lblState", "$Type": "Label", "$Version": "5",
+             "Text": "Loading database...", "FontSize": "16", "HasMargins": "True", "Uuid": uid()},
             {"$Name": "Web1", "$Type": "Web", "$Version": "4", "Uuid": uid()},
+            {"$Name": "Web2", "$Type": "Web", "$Version": "4", "Uuid": uid()},
+            {"$Name": "Clock1", "$Type": "Clock", "$Version": "4", "TimerInterval": "1500", "Uuid": uid()},
             {"$Name": "BluetoothClient1", "$Type": "BluetoothClient", "$Version": "4", "Uuid": uid()},
         ],
     },
@@ -109,28 +114,66 @@ blocks += global_decl("SECRET", text(""), 70)
 # to sendValue tag value:
 #   set Web1.Url to FIREBASE_URL + tag + ".json" (+ "?auth=" + SECRET when SECRET is set)
 #   call Web1.PutText value
-url_expr = (f'<block type="controls_choose" id="{uid()}">'
+def auth_url(path_expr):
+    """FIREBASE_URL + path + ".json" (+ "?auth=" + SECRET when SECRET is set)"""
+    return (f'<block type="controls_choose" id="{uid()}">'
             f'<value name="TEST"><block type="text_isEmpty" id="{uid()}"><value name="VALUE">{gget("SECRET")}</value></block></value>'
-            f'<value name="THENRETURN">{join(gget("FIREBASE_URL"), pget("tag"), text(".json"))}</value>'
-            f'<value name="ELSERETURN">{join(gget("FIREBASE_URL"), pget("tag"), text(".json?auth="), gget("SECRET"))}</value>'
+            f'<value name="THENRETURN">{join(gget("FIREBASE_URL"), path_expr, text(".json"))}</value>'
+            f'<value name="ELSERETURN">{join(gget("FIREBASE_URL"), path_expr, text(".json?auth="), gget("SECRET"))}</value>'
             f'</block>')
-put = (f'<block type="component_method" id="{uid()}">'
-       f'<mutation component_type="Web" method_name="PutText" is_generic="false" instance_name="Web1"></mutation>'
-       f'<field name="COMPONENT_SELECTOR">Web1</field>'
-       f'<value name="ARG0">{pget("value")}</value>'
-       f'<next>{set_prop("Label", "lblStatus", "Text", join(text("Sending "), pget("tag"), text(" = "), pget("value")))}</next>'
-       f'</block>')
-web_send = set_prop("Web", "Web1", "Url", url_expr, put)
-bt_send = call("BluetoothClient", "BluetoothClient1", "SendText",
-               join(pget("tag"), text(":"), pget("value"), text("\\n")),
-               nxt=set_prop("Label", "lblStatus", "Text",
-                            join(text("Sent by Bluetooth: "), pget("tag"), text(" = "), pget("value"))))
-blocks += (f'<block type="procedures_defnoreturn" id="{uid()}" x="20" y="130">'
-           f'<mutation><arg name="tag"></arg><arg name="value"></arg></mutation>'
-           f'<field name="NAME">sendValue</field><field name="VAR0">tag</field><field name="VAR1">value</field>'
-           f'<statement name="STACK">'
-           f'{if_else(get_prop("BluetoothClient", "BluetoothClient1", "IsConnected"), bt_send, web_send)}'
-           f'</statement></block>\n')
+
+def proc(name, args, body, y):
+    muts = "".join(f'<arg name="{a}"></arg>' for a in args)
+    fields = "".join(f'<field name="VAR{i}">{a}</field>' for i, a in enumerate(args))
+    return (f'<block type="procedures_defnoreturn" id="{uid()}" x="20" y="{y}">'
+            f'<mutation>{muts}</mutation><field name="NAME">{name}</field>{fields}'
+            f'<statement name="STACK">{body}</statement></block>\n')
+
+def call_proc(name, args, values, nxt=""):
+    muts = "".join(f'<arg name="{a}"></arg>' for a in args)
+    vals = "".join(f'<value name="ARG{i}">{v}</value>' for i, v in enumerate(values))
+    nxt = f"<next>{nxt}</next>" if nxt else ""
+    return (f'<block type="procedures_callnoreturn" id="{uid()}">'
+            f'<mutation name="{name}">{muts}</mutation><field name="PROCNAME">{name}</field>{vals}{nxt}</block>')
+
+def if_only(test, then, nxt=""):
+    nxt = f"<next>{nxt}</next>" if nxt else ""
+    return (f'<block type="controls_if" id="{uid()}"><value name="IF0">{test}</value>'
+            f'<statement name="DO0">{then}</statement>{nxt}</block>')
+
+def choose(test, a, b):
+    return (f'<block type="controls_choose" id="{uid()}"><value name="TEST">{test}</value>'
+            f'<value name="THENRETURN">{a}</value><value name="ELSERETURN">{b}</value></block>')
+
+def compare(op, a, b):
+    return (f'<block type="logic_compare" id="{uid()}"><field name="OP">{op}</field>'
+            f'<value name="A">{a}</value><value name="B">{b}</value></block>')
+
+def lookup(key):
+    return (f'<block type="lists_lookup_in_pairs" id="{uid()}">'
+            f'<value name="KEY">{text(key)}</value><value name="LIST">{gget("state")}</value>'
+            f'<value name="NOTFOUND">{text("-")}</value></block>')
+
+bt_connected = get_prop("BluetoothClient", "BluetoothClient1", "IsConnected")
+blocks += global_decl("state", '<block type="lists_create_with" id="' + uid() + '"><mutation items="0"></mutation></block>', 100)
+
+# to saveOnline tag value: PUT value to Firebase (Web1)
+blocks += proc("saveOnline", ["tag", "value"],
+               set_prop("Web", "Web1", "Url", auth_url(pget("tag")),
+                        call("Web", "Web1", "PutText", pget("value"))), 150)
+
+# to sendValue tag value:
+#   if Bluetooth connected -> send "TAG:VALUE;" to the ESP32
+#   always                 -> save to Firebase (so database, Bluetooth and online stay in sync)
+blocks += proc("sendValue", ["tag", "value"],
+               if_only(bt_connected,
+                       call("BluetoothClient", "BluetoothClient1", "SendText",
+                            join(pget("tag"), text(":"), pget("value"), text(";"))),
+                       call_proc("saveOnline", ["tag", "value"], [pget("tag"), pget("value")],
+                                 set_prop("Label", "lblStatus", "Text",
+                                          join(text("Sending "), pget("tag"), text(" = "), pget("value"),
+                                               choose(bt_connected, text(" (Bluetooth + Online)"), text(" (Online)")))))),
+               260)
 
 # --- Bluetooth: scan (paired devices), connect, disconnect ---
 blocks += event("ListPicker", "lpBluetooth", "BeforePicking",
@@ -150,27 +193,40 @@ blocks += event("Button", "btnDisconnect", "Click",
                                            '<block type="color_red" id="' + uid() + '"><field name="COLOR">#ff0000</field></block>'))),
                 20, 720)
 
-# when Web1.GotText: "Saved: x" on 200, otherwise the error from Firebase
-blocks += (f'<block type="component_event" id="{uid()}" x="20" y="800">'
-           f'<mutation component_type="Web" is_generic="false" instance_name="Web1" event_name="GotText"></mutation>'
-           f'<field name="COMPONENT_SELECTOR">Web1</field>'
-           f'<statement name="DO"><block type="controls_if" id="{uid()}"><mutation else="1"></mutation>'
-           f'<value name="IF0"><block type="logic_compare" id="{uid()}"><field name="OP">EQ</field>'
-           f'<value name="A">{eget("responseCode")}</value><value name="B">{num(200)}</value></block></value>'
-           f'<statement name="DO0">{set_prop("Label", "lblStatus", "Text", join(text("Saved: "), eget("responseContent")))}</statement>'
-           f'<statement name="ELSE">{set_prop("Label", "lblStatus", "Text", join(text("Error "), eget("responseCode"), text(": "), eget("responseContent")))}</statement>'
-           f'</block></statement></block>\n')
+# when Web1.GotText: confirm the save, or show the error from Firebase
+blocks += event("Web", "Web1", "GotText",
+                if_else(compare("EQ", eget("responseCode"), num(200)),
+                        set_prop("Label", "lblStatus", "Text", join(text("Saved online: "), eget("responseContent"))),
+                        set_prop("Label", "lblStatus", "Text",
+                                 join(text("Online error "), eget("responseCode"), text(": "), eget("responseContent")))),
+                20, 800)
+
+# --- Live sync: every 1.5 s read the whole database and show it ---
+blocks += event("Clock", "Clock1", "Timer",
+                set_prop("Web", "Web2", "Url", auth_url(text("")), call("Web", "Web2", "Get")), 20, 900)
+show_state = set_prop("Label", "lblState", "Text", join(
+    text("LED1: "), lookup("LED1"), text("   LED2: "), lookup("LED2"),
+    text("   LED3: "), lookup("LED3"), text("   LED4: "), lookup("LED4"),
+    text("\\nALL_LED: "), lookup("ALL_LED"), text("   SERVO: "), lookup("SERVO")))
+blocks += event("Web", "Web2", "GotText",
+                if_only('<block type="logic_operation" id="' + uid() + '"><field name="OP">AND</field>'
+                        f'<value name="A">{compare("EQ", eget("responseCode"), num(200))}</value>'
+                        f'<value name="B">{compare("NEQ", eget("responseContent"), text("null"))}</value></block>',
+                        f'<block type="lexical_variable_set" id="{uid()}"><field name="VAR">global state</field>'
+                        f'<value name="VALUE">{call("Web", "Web2", "JsonTextDecode", eget("responseContent"))}</value>'
+                        f'<next>{show_state}</next></block>'),
+                20, 1000)
 
 # when <button>.Click: call sendValue "<tag>" <value>
+# ALL LED buttons also save LED1..LED4 online, so the database matches at once.
 for i, (name, _, tag, value) in enumerate(BUTTONS):
-    blocks += (f'<block type="component_event" id="{uid()}" x="650" y="{20 + i * 90}">'
-               f'<mutation component_type="Button" is_generic="false" instance_name="{name}" event_name="Click"></mutation>'
-               f'<field name="COMPONENT_SELECTOR">{name}</field>'
-               f'<statement name="DO"><block type="procedures_callnoreturn" id="{uid()}">'
-               f'<mutation name="sendValue"><arg name="tag"></arg><arg name="value"></arg></mutation>'
-               f'<field name="PROCNAME">sendValue</field>'
-               f'<value name="ARG0">{text(tag)}</value><value name="ARG1">{num(value)}</value>'
-               f'</block></statement></block>\n')
+    body = call_proc("sendValue", ["tag", "value"], [text(tag), num(value)])
+    if tag == "ALL_LED":
+        chain = ""
+        for n in (4, 3, 2, 1):
+            chain = call_proc("saveOnline", ["tag", "value"], [text(f"LED{n}"), num(value)], chain)
+        body = call_proc("sendValue", ["tag", "value"], [text(tag), num(value)], chain)
+    blocks += event("Button", name, "Click", body, 700, 20 + i * 110)
 
 bky = ('<xml xmlns="http://www.w3.org/1999/xhtml">\n' + blocks
        + '<yacodeblocks ya-version="208" language-version="33"></yacodeblocks>\n</xml>\n')

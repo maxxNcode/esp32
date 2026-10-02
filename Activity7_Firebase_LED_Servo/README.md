@@ -1,136 +1,188 @@
-# Activity 7: ESP32 + Firebase + MIT App Inventor
+# Activity 7: ESP32 + Firebase + MIT App Inventor (Android)
 
 ```
  MIT App Inventor app  --->  Firebase Realtime DB  --->  ESP32  --->  LED1-4 + Servo
-   (buttons)                 LED1: 0   LED4: 0
+   (Android phone)           LED1: 0   LED4: 0
                              LED2: 0   ALL_LED: 0
                              LED3: 0   SERVO: 0
 ```
 
-The app never talks to the ESP32 directly. Each button writes a value to
-Firebase, and the ESP32 reads Firebase about 3 times a second.
+You need: a Google account, a laptop with Arduino IDE, an Android phone, an ESP32,
+4 LEDs + 4 × 220 Ω resistors, 1 servo (SG90), a breadboard, jumper wires, and 2.4 GHz Wi-Fi
+(a phone hotspot works).
 
-## 1. Wiring
+---
 
-| Part   | ESP32 pin | Notes                                              |
-|--------|-----------|----------------------------------------------------|
-| LED1   | GPIO 16   | GPIO → 220–330 Ω resistor → LED long leg; short leg → GND |
-| LED2   | GPIO 17   | same                                               |
-| LED3   | GPIO 18   | same                                               |
-| LED4   | GPIO 19   | same                                               |
-| Servo signal (orange/yellow) | GPIO 13 |                                  |
-| Servo + (red)   | 5V / VIN | use an external 5V supply if the ESP32 resets   |
-| Servo − (brown) | GND      | must share GND with the ESP32                   |
+## Part 1: Firebase
 
-## 2. Firebase setup
+### 1.1 Create the project
+1. Go to https://console.firebase.google.com and sign in with your Google account.
+2. Click **Create a project** (or **Get started with a Firebase project** / **Add project**).
+3. **Project name:** `activity7`. Tick **I accept the Firebase terms** (and the confirm box, if shown), then **Continue**.
+4. **AI assistance / Gemini in Firebase:** you can turn it off. Click **Continue**.
+5. **Google Analytics:** turn it **off**. Click **Create project**.
+6. Wait for "Your Firebase project is ready", then click **Continue**.
 
-1. Go to https://console.firebase.google.com → **Add project**.
-2. **Build → Realtime Database → Create database** → choose **Start in test mode**.
-3. Copy the database URL, e.g. `https://activity7-1234-default-rtdb.firebaseio.com/`.
-4. Get the secret: **⚙ Project settings → Service accounts → Database secrets → Show**.
-5. Optional: add the starting data. Click **⋮ → Import JSON** and import:
+### 1.2 Register an Android app ("choose iOS / Android / Web")
+The Project Overview page asks you to **add Firebase to your app** with icons for iOS, Android, Web, Unity and Flutter.
 
+> MIT App Inventor connects with the **database URL + secret**, so this step is **optional**.
+> If your teacher wants it, do it as below. Otherwise skip to 1.3.
+
+1. Click the **Android** icon.
+2. **Android package name:** `appinventor.ai_YOURUSERNAME.Activity7`
+   (YOURUSERNAME = the part of your Gmail before `@`, for example `appinventor.ai_juan.Activity7`).
+   The name can't contain dots or dashes. If your username has them, change them to `_`.
+3. **App nickname:** `Activity7`. Leave **SHA-1** empty. Click **Register app**.
+4. **Download google-services.json:** you can download it, but App Inventor **does not use it**. Click **Next**.
+5. **Add Firebase SDK:** this is for Android Studio only. Click **Next**, then **Continue to console**.
+
+### 1.3 Create the Realtime Database
+1. In the left menu, open **Build** (in newer consoles, **Databases & Storage**) → **Realtime Database**.
+   Use **Realtime Database**, not *Firestore Database*.
+2. Click **Create Database**.
+3. **Database location:** **Singapore (asia-southeast1)** or **United States (us-central1)**. Click **Next**.
+4. **Security rules:** choose **Start in test mode**. Click **Enable**.
+5. At the top of the **Data** tab you'll see the URL. Copy it into a notepad. It looks like:
+   `https://activity7-xxxx-default-rtdb.asia-southeast1.firebasedatabase.app/`
+   This is your **URL**.
+
+### 1.4 Add the starting data
+1. On your laptop, make a text file named `data.json` containing:
+   ```json
+   { "LED1": 0, "LED2": 0, "LED3": 0, "LED4": 0, "ALL_LED": 0, "SERVO": 0 }
+   ```
+2. In the **Data** tab, click **⋮** (top right of the data box), choose **Import JSON**, pick `data.json`, and click **Import**.
+3. You should now see the 6 keys, all set to `0`.
+
+### 1.5 Get the database secret
+1. Click ⚙ (next to **Project Overview**) and open **Project settings**.
+2. Open the **Service accounts** tab, then **Database secrets** (left side).
+3. Hover over the secret, click **Show**, and copy it into your notepad. This is your **SECRET**.
+   (Google labels it "deprecated", but it still works.)
+
+### 1.6 Rules (after 30 days)
+Test mode stops working after 30 days. If you get "permission denied" later, go to **Realtime Database → Rules**, paste this, and click **Publish**:
 ```json
-{ "LED1": 0, "LED2": 0, "LED3": 0, "LED4": 0, "ALL_LED": 0, "SERVO": 0 }
+{ "rules": { ".read": true, ".write": true } }
 ```
 
-## 3. ESP32 code
+---
 
-1. Arduino IDE → Boards Manager → install **esp32 by Espressif Systems**. Select **ESP32 Dev Module**.
-2. Library Manager → install:
-   - **Firebase Arduino Client Library for ESP8266 and ESP32** (by Mobizt)
-   - **ESP32Servo**
-3. Open `Activity7_Firebase_LED_Servo.ino` and fill in:
-   - `WIFI_SSID`, `WIFI_PASSWORD` (must be **2.4 GHz** Wi-Fi)
-   - `DATABASE_URL`: the URL **without** `https://` and without the trailing `/`
-   - `DATABASE_SECRET`: the secret from step 2.4
-4. Upload, then open the Serial Monitor at **115200** baud.
+## Part 2: MIT App Inventor app (Android)
 
-## 4. MIT App Inventor app
+### 2.1 Set up your Android phone
+1. On the phone, open the **Play Store** and install **MIT AI2 Companion**.
+2. Connect the phone and the laptop to the **same Wi-Fi**.
 
-### Fast way: import the ready-made project
+### 2.2 Import the project
+1. On the laptop, go to https://ai2.appinventor.mit.edu and sign in with your Google account.
+   On first use, accept the **Terms of Service** and close the welcome window.
+2. Download **`Activity7.aia`** from this folder.
+3. Choose **Projects → Import project (.aia) from my computer → Choose File →** `Activity7.aia` **→ OK**.
+4. The project opens in the **Designer**. You'll see a title, 13 buttons and a status label.
 
-1. Download `Activity7.aia` from this folder.
-2. Go to https://ai2.appinventor.mit.edu → **Projects → Import project (.aia) from my computer** → choose `Activity7.aia`.
-3. In the **Designer**, click **FirebaseDB1** (under Non-visible components) and set:
-   - **FirebaseURL** → *Use Custom* → your database URL (e.g. `https://activity7-1234-default-rtdb.firebaseio.com/`)
-   - **FirebaseToken** → your database secret
-   - **ProjectBucket** → leave it empty
-4. Done. All 13 buttons and their blocks are already set up. Connect with **AI Companion**, or use **Build → Android App (.apk)**.
+### 2.3 Connect it to your Firebase
+1. Under the phone preview, in **Non-visible components**, click **FirebaseDB1**.
+2. In the **Properties** panel on the right:
+   - **FirebaseURL**: click the box, choose **Use Custom**, paste your **URL**, and click **OK**.
+   - **FirebaseToken**: delete what's there and paste your **SECRET**.
+   - **ProjectBucket**: delete everything so it's **empty**.
+   - **Persist**: leave it unticked.
+3. Optional: open **Blocks** (top right) to see the blocks. Each button has
+   `call FirebaseDB1.StoreValue  tag "LED1"  valueToStore 1`.
 
-(To regenerate the .aia, run `python3 make_aia.py`.)
+### 2.4 Test with AI Companion
+1. On the website, choose **Connect → AI Companion**. A QR code appears.
+2. On the phone, open **MIT AI2 Companion** and tap **scan QR code** (or type the 6-letter code), then **connect with code**.
+3. The app appears on the phone. Press **LED1 ON**.
+4. In the Firebase console, `LED1` should turn to `1` (it flashes yellow or green). ✅
+   If not, the status label at the bottom of the app shows the Firebase error.
 
-The rest of this section shows how to build the same app by hand.
+### 2.5 Install it as a real Android app (.apk)
+1. Choose **Build → Android App (.apk)**. Wait for it to finish (1–2 minutes).
+2. Either scan the QR code with the **Companion** app's scanner (or any QR app), or click **Download .apk** and copy it to the phone.
+3. Open the file on the phone. If Android blocks it, tap **Settings → Allow from this source**, go back, and tap **Install**.
+4. If **Play Protect** warns you, tap **More details → Install anyway**.
+5. Open **Activity7** from the phone's app list.
 
-### Designer
+---
 
-- **Screen1**: 13 Buttons, as on the whiteboard. A `TableArrangement` (2 columns × 7 rows) keeps them tidy.
+## Part 3: ESP32
 
-| Button name   | Text        |
-|---------------|-------------|
-| btnLed1On / btnLed1Off | LED1 ON / LED1 OFF |
-| btnLed2On / btnLed2Off | LED2 ON / LED2 OFF |
-| btnLed3On / btnLed3Off | LED3 ON / LED3 OFF |
-| btnLed4On / btnLed4Off | LED4 ON / LED4 OFF |
-| btnAllOn / btnAllOff   | ALL LED ON / ALL LED OFF |
-| btnServo90 / btnServo180 / btnServo0 | SERVO 90 / SERVO 180 / SERVO 0 |
+### 3.1 Install the Arduino IDE and the ESP32 board
+1. Download **Arduino IDE 2** from https://www.arduino.cc/en/software and install it.
+2. Go to **File → Preferences → Additional boards manager URLs**, paste
+   `https://espressif.github.io/arduino-esp32/package_esp32_index.json`, and click **OK**.
+3. In **Tools → Board → Boards Manager**, search for `esp32` and install **esp32 by Espressif Systems**.
+4. In **Tools → Manage Libraries**, search and install:
+   - **Firebase Arduino Client Library for ESP8266 and ESP32** (by **Mobizt**). Click **Install all** if asked.
+   - **ESP32Servo** (by Kevin Harrington)
+5. If the laptop doesn't see the ESP32 as a port, install the USB driver:
+   **CP210x** (https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers) or **CH340**, depending on the chip on your board.
 
-- **FirebaseDB1** (Palette → *Experimental* → FirebaseDB). Its properties:
-  - **FirebaseURL**: your database URL, e.g. `https://activity7-1234-default-rtdb.firebaseio.com/`
-  - **FirebaseToken**: the database secret from step 2.4
-  - **ProjectBucket**: **clear it (leave empty)**. If you leave text here, the app writes
-    to `/<bucket>/LED1`, and the ESP32 looks for `/LED1` and won't find it.
+### 3.2 Wiring
 
-### Blocks
+| Part | ESP32 pin |
+|------|-----------|
+| LED1: long leg (+) → 220 Ω resistor | GPIO 16 |
+| LED2: long leg (+) → 220 Ω resistor | GPIO 17 |
+| LED3: long leg (+) → 220 Ω resistor | GPIO 18 |
+| LED4: long leg (+) → 220 Ω resistor | GPIO 19 |
+| All LED short legs (−) | GND |
+| Servo **orange/yellow** (signal) | GPIO 13 |
+| Servo **red** (+) | 5V / VIN |
+| Servo **brown/black** (−) | GND |
 
-Every button uses the same block: `call FirebaseDB1.StoreValue tag ... valueToStore ...`
+### 3.3 Edit and upload the code
+1. Open `Activity7_Firebase_LED_Servo/Activity7_Firebase_LED_Servo.ino`.
+2. Change the top of the file:
+   ```cpp
+   #define WIFI_SSID       "your wifi name"
+   #define WIFI_PASSWORD   "your wifi password"
+   #define DATABASE_URL    "activity7-xxxx-default-rtdb.asia-southeast1.firebasedatabase.app"
+   #define DATABASE_SECRET "your secret"
+   ```
+   For `DATABASE_URL`, take your URL and remove `https://` and the `/` at the end.
+3. Plug in the ESP32 with a **data** USB cable (some cables only charge).
+4. Under **Tools → Board → esp32**, choose **ESP32 Dev Module**.
+5. Under **Tools → Port**, choose the COM port that appeared (for example COM5).
+6. Click **Upload (→)**. If it gets stuck on `Connecting.....`, **hold the BOOT button** until uploading starts.
+7. Open **Tools → Serial Monitor** and set it to **115200 baud**. Press the ESP32's **EN/RST** button. You should see:
+   ```
+   Connecting to WiFi....
+   Connected, IP: 192.168.x.x
+   LED1 -> OFF
+   ...
+   ```
 
-| When ... .Click | tag       | valueToStore |
-|-----------------|-----------|--------------|
-| btnLed1On       | `LED1`    | `1` |
-| btnLed1Off      | `LED1`    | `0` |
-| btnLed2On       | `LED2`    | `1` |
-| btnLed2Off      | `LED2`    | `0` |
-| btnLed3On       | `LED3`    | `1` |
-| btnLed3Off      | `LED3`    | `0` |
-| btnLed4On       | `LED4`    | `1` |
-| btnLed4Off      | `LED4`    | `0` |
-| btnAllOn        | `ALL_LED` | `1` |
-| btnAllOff       | `ALL_LED` | `0` |
-| btnServo90      | `SERVO`   | `90` |
-| btnServo180     | `SERVO`   | `180` |
-| btnServo0       | `SERVO`   | `0` |
+---
 
-Example (LED1 ON):
+## Part 4: Test everything
 
-```
-when btnLed1On.Click
-do  call FirebaseDB1.StoreValue
-        tag           "LED1"        <- text block
-        valueToStore  1             <- number block (Math)
-```
+| Press in app | Firebase | ESP32 |
+|--------------|----------|-------|
+| LED1 ON / OFF … LED4 ON / OFF | `LEDx` = 1 / 0 | that LED turns on / off |
+| ALL LED ON | `ALL_LED` = 1, LED1–4 = 1 | all 4 LEDs on |
+| ALL LED OFF | `ALL_LED` = 0, LED1–4 = 0 | all 4 LEDs off |
+| SERVO 0 / 90 / 180 | `SERVO` = 0 / 90 / 180 | servo turns to that angle |
 
-Use a **text** block for the tag and a **number** block from Math for the value.
-The ESP32 also accepts text values ("1"), so either works.
-
-**How ALL LED works:** the ESP32 acts when `ALL_LED` **changes**. It turns all 4 LEDs on or off
-and writes the same value into LED1–LED4 in Firebase. After that, the single LED buttons still
-work. If ALL LED ON doesn't respond, press ALL LED OFF first, because the value has to change.
-
-## 5. Testing
-
-1. Watch the Serial Monitor. It should print `Connected, IP: ...` and no `Firebase read failed`.
-2. Open the Firebase console and change `LED1` to `1` by hand. LED1 should light up.
-3. Run the app with **AI Companion** and press the buttons. The values in the console should change,
-   and so should the LEDs and the servo.
+---
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| Stuck at `Connecting to WiFi....` | Wrong SSID/password, or the network is 5 GHz only |
-| `Firebase read failed: permission denied` | Wrong `DATABASE_SECRET`, or the rules aren't in test mode |
-| `Firebase read failed: ... host` | `DATABASE_URL` must not include `https://` or the trailing `/` |
-| The app changes values, but under another folder | Clear **ProjectBucket** in FirebaseDB1 |
-| ESP32 resets or browns out when the servo moves | Power the servo from an external 5V supply and connect the grounds |
-| LED stays off | Flip the LED (the long leg goes to the GPIO side) and check the resistor |
+| No COM port in Arduino | Install the CP210x/CH340 driver, or try another USB cable |
+| Upload stuck on `Connecting.....` | Hold **BOOT** while uploading |
+| Stuck on `Connecting to WiFi....` | Use **2.4 GHz** Wi-Fi and check the name and password (they're case-sensitive) |
+| `Firebase read failed: permission denied` | The secret is wrong, or test mode has expired (see 1.6) |
+| `Firebase read failed: ... host` / `connection refused` | `DATABASE_URL` still has `https://` or a trailing `/` |
+| App values appear in a sub-folder in Firebase | Clear **ProjectBucket** in FirebaseDB1 |
+| AI Companion won't connect | Put the phone and laptop on the same Wi-Fi, or use **Connect → USB** |
+| Android won't install the .apk | Allow **Install unknown apps** for your browser or file manager |
+| ESP32 restarts when the servo moves | Power the servo from a separate 5V supply and connect the grounds |
+| An LED doesn't light | Flip the LED (the long leg goes to the resistor/GPIO side) |
+| ALL LED ON does nothing | Press ALL LED OFF first. It only reacts when the value changes. |
+
+To regenerate the .aia: `python3 make_aia.py`.

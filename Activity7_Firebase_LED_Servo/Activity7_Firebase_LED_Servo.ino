@@ -1,20 +1,28 @@
 /*
-  Activity 7 - ESP32 + Firebase Realtime Database + MIT App Inventor
+  Activity 7 - ESP32 + Firebase Realtime Database + Bluetooth + MIT App Inventor
 
-  The MIT App Inventor app writes values to Firebase:
+  The MIT App Inventor app controls 4 LEDs and 1 servo in two ways:
+    1. Bluetooth (when connected): sends lines like "LED1:1", "ALL_LED:0", "SERVO:90"
+    2. Firebase (IoT):             writes LED1..LED4, ALL_LED, SERVO in the database
+
+  Values:
       LED1, LED2, LED3, LED4  -> 0 (off) or 1 (on)
       ALL_LED                 -> 0 (all off) or 1 (all on)
       SERVO                   -> 0, 90 or 180 (angle in degrees)
 
-  The ESP32 reads those values and drives 4 LEDs and 1 servo.
+  Bluetooth commands are also written to Firebase, so the database always
+  matches the real LEDs/servo.
 
   Libraries (Arduino IDE > Tools > Manage Libraries):
     - "Firebase Arduino Client Library for ESP8266 and ESP32" by Mobizt
     - "ESP32Servo" by Kevin Harrington
-  Board: ESP32 Dev Module (install "esp32 by Espressif Systems" in Boards Manager)
+  Board: ESP32 Dev Module (classic ESP32 - Bluetooth Serial does not work on ESP32-S3/C3)
+  IMPORTANT: Tools > Partition Scheme > "Huge APP (3MB No OTA/1MB SPIFFS)"
+             (Wi-Fi + Bluetooth + Firebase is too big for the default partition)
 */
 
 #include <WiFi.h>
+#include <BluetoothSerial.h>
 #include <Firebase_ESP_Client.h>
 #include <ESP32Servo.h>
 
@@ -23,18 +31,20 @@
 #define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
 
 // Realtime Database URL, without "https://" and without the trailing "/"
-// e.g. "activity7-1234-default-rtdb.firebaseio.com"
-#define DATABASE_URL    "YOUR_PROJECT-default-rtdb.firebaseio.com"
+#define DATABASE_URL    "activity7-8fac0-default-rtdb.asia-southeast1.firebasedatabase.app"
 
 // Project settings > Service accounts > Database secrets
-// (use the same secret as the FirebaseToken in MIT App Inventor)
 #define DATABASE_SECRET "YOUR_DATABASE_SECRET"
+
+// Name shown when the phone scans for Bluetooth devices
+#define BT_NAME         "ESP32_Activity7"
 // -----------------------------------
 
 // Pins
 const int LED_PINS[4] = {16, 17, 18, 19};  // LED1..LED4 (each through a 220-330 ohm resistor)
 const int SERVO_PIN   = 13;                // servo signal (orange/yellow wire)
 
+BluetoothSerial SerialBT;
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
@@ -43,9 +53,14 @@ Servo servo;
 int lastAllLed   = -1;  // -1 = not read yet
 int lastServo    = -1;
 int ledState[4]  = {-1, -1, -1, -1};
+String btLine;
 
 unsigned long lastPoll = 0;
 const unsigned long POLL_MS = 300;
+
+bool firebaseOnline() {
+  return WiFi.status() == WL_CONNECTED && Firebase.ready();
+}
 
 // App Inventor may save numbers as 1 or as text "1" / "\"1\"".
 // This turns any of those into an int.
@@ -62,37 +77,65 @@ void setLed(int i, int value) {
   Serial.printf("LED%d -> %s\n", i + 1, ledState[i] ? "ON" : "OFF");
 }
 
-void setup() {
-  Serial.begin(115200);
-
-  for (int i = 0; i < 4; i++) {
-    pinMode(LED_PINS[i], OUTPUT);
-    digitalWrite(LED_PINS[i], LOW);
-  }
-
-  servo.setPeriodHertz(50);
-  servo.attach(SERVO_PIN, 500, 2400);
-  servo.write(0);
-
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(300);
-    Serial.print(".");
-  }
-  Serial.print("\nConnected, IP: ");
-  Serial.println(WiFi.localIP());
-
-  config.database_url = DATABASE_URL;
-  config.signer.tokens.legacy_token = DATABASE_SECRET;
-  Firebase.reconnectWiFi(true);
-  Firebase.begin(&config, &auth);
+void setServo(int angle) {
+  angle = constrain(angle, 0, 180);
+  servo.write(angle);
+  lastServo = angle;
+  Serial.printf("SERVO -> %d deg\n", angle);
 }
 
-void loop() {
-  if (millis() - lastPoll < POLL_MS) return;
-  lastPoll = millis();
+// ---------- Bluetooth ----------
 
+// Apply one command from Bluetooth, e.g. key="LED1" value=1, then copy it to Firebase.
+void applyBluetoothCommand(String key, int value) {
+  FirebaseJson update;
+
+  if (key == "ALL_LED") {
+    int all = value ? 1 : 0;
+    lastAllLed = all;
+    for (int i = 0; i < 4; i++) {
+      setLed(i, all);
+      update.set("LED" + String(i + 1), all);
+    }
+    update.set("ALL_LED", all);
+  } else if (key == "SERVO") {
+    setServo(value);
+    update.set("SERVO", lastServo);
+  } else if (key.startsWith("LED") && key.length() == 4) {
+    int i = key.substring(3).toInt() - 1;
+    if (i < 0 || i > 3) return;
+    setLed(i, value);
+    update.set(key, ledState[i]);
+  } else {
+    Serial.println("Unknown Bluetooth command: " + key);
+    return;
+  }
+
+  SerialBT.println("OK " + key + ":" + String(value));
+  if (firebaseOnline()) Firebase.RTDB.updateNode(&fbdo, "/", &update);
+}
+
+// Read Bluetooth characters until a full line "KEY:VALUE" arrives.
+void handleBluetooth() {
+  while (SerialBT.available()) {
+    char c = SerialBT.read();
+    if (c == '\n' || c == '\r') {
+      btLine.trim();
+      int sep = btLine.indexOf(':');
+      if (sep > 0) {
+        Serial.println("BT: " + btLine);
+        applyBluetoothCommand(btLine.substring(0, sep), btLine.substring(sep + 1).toInt());
+      }
+      btLine = "";
+    } else if (btLine.length() < 32) {
+      btLine += c;
+    }
+  }
+}
+
+// ---------- Firebase ----------
+
+void pollFirebase() {
   // Read the whole database root in one request
   if (!Firebase.RTDB.getJSON(&fbdo, "/")) {
     Serial.print("Firebase read failed: ");
@@ -135,10 +178,51 @@ void loop() {
   // SERVO angle
   if (json.get(d, "SERVO")) {
     int angle = constrain(toInt(d), 0, 180);
-    if (angle != lastServo) {
-      servo.write(angle);
-      lastServo = angle;
-      Serial.printf("SERVO -> %d deg\n", angle);
-    }
+    if (angle != lastServo) setServo(angle);
   }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  for (int i = 0; i < 4; i++) {
+    pinMode(LED_PINS[i], OUTPUT);
+    digitalWrite(LED_PINS[i], LOW);
+  }
+
+  servo.setPeriodHertz(50);
+  servo.attach(SERVO_PIN, 500, 2400);
+  servo.write(0);
+
+  SerialBT.begin(BT_NAME);
+  Serial.println("Bluetooth ready: " BT_NAME);
+
+  // Wait up to 15 s for Wi-Fi. Bluetooth still works without it.
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi");
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
+    delay(300);
+    Serial.print(".");
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("\nConnected, IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nNo WiFi - Bluetooth only (will keep retrying WiFi)");
+  }
+
+  config.database_url = DATABASE_URL;
+  config.signer.tokens.legacy_token = DATABASE_SECRET;
+  Firebase.reconnectWiFi(true);
+  Firebase.begin(&config, &auth);
+}
+
+void loop() {
+  handleBluetooth();
+
+  if (millis() - lastPoll < POLL_MS) return;
+  lastPoll = millis();
+
+  if (firebaseOnline()) pollFirebase();
 }

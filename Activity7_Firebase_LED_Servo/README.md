@@ -1,11 +1,18 @@
-# Activity 7: ESP32 + Firebase + MIT App Inventor (Android)
+# Activity 7: ESP32 + Firebase + Bluetooth + MIT App Inventor (Android)
 
 ```
- MIT App Inventor app  --->  Firebase Realtime DB  --->  ESP32  --->  LED1-4 + Servo
-   (Android phone)           LED1: 0   LED4: 0
-                             LED2: 0   ALL_LED: 0
-                             LED3: 0   SERVO: 0
+                  Bluetooth (when connected)
+ MIT App Inventor app ------------------------------> ESP32 ---> LED1-4 + Servo
+   (Android phone)  \                                 ^
+                     \--> Firebase Realtime DB -------/   (IoT, when not on Bluetooth)
+                          LED1: 0   LED4: 0
+                          LED2: 0   ALL_LED: 0
+                          LED3: 0   SERVO: 0
 ```
+
+- **SCAN BLUETOOTH** in the app lists paired devices. Pick **ESP32_Activity7** and the app shows **Bluetooth: Connected**.
+- While Bluetooth is connected, buttons go **straight to the ESP32**, and the ESP32 copies the value into Firebase.
+- When Bluetooth isn't connected, buttons write to **Firebase**, and the ESP32 reads it over Wi-Fi.
 
 You need: a Google account, a laptop with Arduino IDE, an Android phone, an ESP32,
 4 LEDs + 4 × 220 Ω resistors, 1 servo (SG90), a breadboard, jumper wires, and 2.4 GHz Wi-Fi
@@ -92,7 +99,8 @@ component, which shows a black screen with non-US databases like `asia-southeast
      It must be **your** database URL **with** the `/` at the end.
    - `initialize global SECRET to ""`. Leave it **empty** while the database rules are in test mode or public (step 1.6).
      If your rules need a login, paste the database secret here instead.
-3. That's all. Every button calls `sendValue tag value`. The status label shows `Saved: 1` when Firebase accepts the value,
+3. That's all. Every button calls `sendValue tag value`. If Bluetooth is connected, it sends `LED1:1` by Bluetooth;
+   otherwise it writes to Firebase. The status label shows `Saved: 1` when Firebase accepts the value,
    or `Error 401: ...` (wrong secret or rules) and `Error 404` (wrong URL).
 
 ### 2.4 Test with AI Companion
@@ -108,6 +116,17 @@ component, which shows a black screen with non-US databases like `asia-southeast
 3. Open the file on the phone. If Android blocks it, tap **Settings → Allow from this source**, go back, and tap **Install**.
 4. If **Play Protect** warns you, tap **More details → Install anyway**.
 5. Open **Activity7** from the phone's app list.
+
+### 2.6 Bluetooth: pair and connect
+(Do this after the ESP32 code is uploaded and running, Part 3.)
+1. On the phone, open **Settings → Bluetooth** (or **Connected devices → Pair new device**). Turn Bluetooth **on**.
+2. Tap **ESP32_Activity7** to **pair** it. If it asks for a PIN, try `1234` or `0000`.
+   The app only lists **paired** devices, so this step is required once.
+3. Open the Activity7 app and tap **SCAN BLUETOOTH**.
+   - The first time, Android asks for **Nearby devices** permission. Tap **Allow**.
+4. Choose **ESP32_Activity7** from the list. The label changes to **Bluetooth: Connected** (green).
+5. Press **LED1 ON**. The status shows `Sent by Bluetooth: LED1 = 1`, LED1 turns on, and Firebase updates too.
+6. Tap **DISCONNECT** to go back to Firebase (IoT) mode.
 
 ---
 
@@ -149,10 +168,13 @@ component, which shows a black screen with non-US databases like `asia-southeast
    For `DATABASE_URL`, take your URL and remove `https://` and the `/` at the end.
 3. Plug in the ESP32 with a **data** USB cable (some cables only charge).
 4. Under **Tools → Board → esp32**, choose **ESP32 Dev Module**.
+   Then set **Tools → Partition Scheme → Huge APP (3MB No OTA/1MB SPIFFS)**.
+   This is required: Wi-Fi + Bluetooth + Firebase doesn't fit in the default partition ("Sketch too big" error).
 5. Under **Tools → Port**, choose the COM port that appeared (for example COM5).
 6. Click **Upload (→)**. If it gets stuck on `Connecting.....`, **hold the BOOT button** until uploading starts.
 7. Open **Tools → Serial Monitor** and set it to **115200 baud**. Press the ESP32's **EN/RST** button. You should see:
    ```
+   Bluetooth ready: ESP32_Activity7
    Connecting to WiFi....
    Connected, IP: 192.168.x.x
    LED1 -> OFF
@@ -181,6 +203,10 @@ component, which shows a black screen with non-US databases like `asia-southeast
 | Stuck on `Connecting to WiFi....` | Use **2.4 GHz** Wi-Fi and check the name and password (they're case-sensitive) |
 | `Firebase read failed: permission denied` | The secret is wrong, or test mode has expired (see 1.6) |
 | `Firebase read failed: ... host` / `connection refused` | `DATABASE_URL` still has `https://` or a trailing `/` |
+| `Sketch too big` when uploading | **Tools → Partition Scheme → Huge APP (3MB No OTA)** |
+| ESP32_Activity7 not in SCAN BLUETOOTH list | Pair it first in the phone's **Settings → Bluetooth** (2.6), and allow **Nearby devices** permission |
+| `Bluetooth: Connection failed` | Restart the ESP32, make sure no other phone is connected to it, then try again |
+| `BluetoothSerial.h` error / Bluetooth not working | You need a **classic ESP32** (ESP32-WROOM/DevKit). ESP32-S3/C3 don't have Bluetooth Classic |
 | App shows a black screen | You have the old version with FirebaseDB. Import the new `Activity7.aia` and rebuild the .apk |
 | App says `Error 401` | Database rules expired (see 1.6), or SECRET is wrong |
 | App says `Error 404` | FIREBASE_URL is wrong, or it's missing the `/` at the end |

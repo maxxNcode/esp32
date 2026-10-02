@@ -1,8 +1,9 @@
 """Builds Activity7.aia - the MIT App Inventor project for Activity 7.
 Run:  python3 make_aia.py   -> creates Activity7.aia next to this script.
 
-The app writes to Firebase with the Web component and the Firebase REST API
-(PUT <url><tag>.json). This works with every database region, unlike the
+When Bluetooth is connected, buttons send "TAG:VALUE\n" to the ESP32 over
+Bluetooth (the ESP32 copies it into Firebase). Otherwise the app writes to
+Firebase with the Web component and the Firebase REST API (PUT <url><tag>.json). This works with every database region, unlike the
 FirebaseDB component (black screen with *.firebasedatabase.app URLs)."""
 import json, os, random, zipfile
 
@@ -40,12 +41,23 @@ form = {
             {"$Name": "lblTitle", "$Type": "Label", "$Version": "5",
              "Text": "ESP32 LED + Servo (Firebase)", "FontSize": "20",
              "FontBold": "True", "Uuid": uid()},
+            {"$Name": "HorizontalArrangement1", "$Type": "HorizontalArrangement", "$Version": "3",
+             "AlignHorizontal": "3", "Width": "-2", "Uuid": uid(), "$Components": [
+                {"$Name": "lpBluetooth", "$Type": "ListPicker", "$Version": "6",
+                 "Text": "SCAN BLUETOOTH", "Title": "Choose ESP32_Activity7", "Uuid": uid()},
+                {"$Name": "btnDisconnect", "$Type": "Button", "$Version": "7",
+                 "Text": "DISCONNECT", "Uuid": uid()},
+            ]},
+            {"$Name": "lblBluetooth", "$Type": "Label", "$Version": "5",
+             "Text": "Bluetooth: Not connected", "FontBold": "True", "TextColor": "&HFFFF0000",
+             "Uuid": uid()},
             {"$Name": "TableArrangement1", "$Type": "TableArrangement", "$Version": "1",
              "Columns": "2", "Rows": str((len(BUTTONS) + 1) // 2),
              "Width": "-2", "Uuid": uid(), "$Components": cells},
             {"$Name": "lblStatus", "$Type": "Label", "$Version": "5",
              "Text": "Ready", "Uuid": uid()},
             {"$Name": "Web1", "$Type": "Web", "$Version": "4", "Uuid": uid()},
+            {"$Name": "BluetoothClient1", "$Type": "BluetoothClient", "$Version": "4", "Uuid": uid()},
         ],
     },
 }
@@ -68,6 +80,24 @@ def set_prop(ctype, inst, prop, value, nxt=""):
             f'<mutation component_type="{ctype}" set_or_get="set" property_name="{prop}" is_generic="false" instance_name="{inst}"></mutation>'
             f'<field name="COMPONENT_SELECTOR">{inst}</field><field name="PROP">{prop}</field>'
             f'<value name="VALUE">{value}</value>{nxt}</block>')
+def get_prop(ctype, inst, prop):
+    return (f'<block type="component_set_get" id="{uid()}">'
+            f'<mutation component_type="{ctype}" set_or_get="get" property_name="{prop}" is_generic="false" instance_name="{inst}"></mutation>'
+            f'<field name="COMPONENT_SELECTOR">{inst}</field><field name="PROP">{prop}</field></block>')
+def call(ctype, inst, method, *args, nxt=""):
+    nxt = f"<next>{nxt}</next>" if nxt else ""
+    vals = "".join(f'<value name="ARG{i}">{a}</value>' for i, a in enumerate(args))
+    return (f'<block type="component_method" id="{uid()}">'
+            f'<mutation component_type="{ctype}" method_name="{method}" is_generic="false" instance_name="{inst}"></mutation>'
+            f'<field name="COMPONENT_SELECTOR">{inst}</field>{vals}{nxt}</block>')
+def event(ctype, inst, name, body, x, y):
+    return (f'<block type="component_event" id="{uid()}" x="{x}" y="{y}">'
+            f'<mutation component_type="{ctype}" is_generic="false" instance_name="{inst}" event_name="{name}"></mutation>'
+            f'<field name="COMPONENT_SELECTOR">{inst}</field><statement name="DO">{body}</statement></block>\n')
+def if_else(test, then, other):
+    return (f'<block type="controls_if" id="{uid()}"><mutation else="1"></mutation>'
+            f'<value name="IF0">{test}</value><statement name="DO0">{then}</statement>'
+            f'<statement name="ELSE">{other}</statement></block>')
 def global_decl(name, value, y):
     return (f'<block type="global_declaration" id="{uid()}" x="20" y="{y}"><field name="NAME">{name}</field>'
             f'<value name="VALUE">{value}</value></block>\n')
@@ -90,14 +120,38 @@ put = (f'<block type="component_method" id="{uid()}">'
        f'<value name="ARG0">{pget("value")}</value>'
        f'<next>{set_prop("Label", "lblStatus", "Text", join(text("Sending "), pget("tag"), text(" = "), pget("value")))}</next>'
        f'</block>')
+web_send = set_prop("Web", "Web1", "Url", url_expr, put)
+bt_send = call("BluetoothClient", "BluetoothClient1", "SendText",
+               join(pget("tag"), text(":"), pget("value"), text("\\n")),
+               nxt=set_prop("Label", "lblStatus", "Text",
+                            join(text("Sent by Bluetooth: "), pget("tag"), text(" = "), pget("value"))))
 blocks += (f'<block type="procedures_defnoreturn" id="{uid()}" x="20" y="130">'
            f'<mutation><arg name="tag"></arg><arg name="value"></arg></mutation>'
            f'<field name="NAME">sendValue</field><field name="VAR0">tag</field><field name="VAR1">value</field>'
-           f'<statement name="STACK">{set_prop("Web", "Web1", "Url", url_expr, put)}</statement>'
-           f'</block>\n')
+           f'<statement name="STACK">'
+           f'{if_else(get_prop("BluetoothClient", "BluetoothClient1", "IsConnected"), bt_send, web_send)}'
+           f'</statement></block>\n')
+
+# --- Bluetooth: scan (paired devices), connect, disconnect ---
+blocks += event("ListPicker", "lpBluetooth", "BeforePicking",
+                set_prop("ListPicker", "lpBluetooth", "Elements",
+                         get_prop("BluetoothClient", "BluetoothClient1", "AddressesAndNames")), 20, 480)
+blocks += event("ListPicker", "lpBluetooth", "AfterPicking",
+                if_else(call("BluetoothClient", "BluetoothClient1", "Connect",
+                             get_prop("ListPicker", "lpBluetooth", "Selection")),
+                        set_prop("Label", "lblBluetooth", "Text", text("Bluetooth: Connected"),
+                                 set_prop("Label", "lblBluetooth", "TextColor",
+                                          '<block type="color_green" id="' + uid() + '"><field name="COLOR">#00ff00</field></block>')),
+                        set_prop("Label", "lblBluetooth", "Text", text("Bluetooth: Connection failed"))), 20, 560)
+blocks += event("Button", "btnDisconnect", "Click",
+                call("BluetoothClient", "BluetoothClient1", "Disconnect",
+                     nxt=set_prop("Label", "lblBluetooth", "Text", text("Bluetooth: Not connected"),
+                                  set_prop("Label", "lblBluetooth", "TextColor",
+                                           '<block type="color_red" id="' + uid() + '"><field name="COLOR">#ff0000</field></block>'))),
+                20, 720)
 
 # when Web1.GotText: "Saved: x" on 200, otherwise the error from Firebase
-blocks += (f'<block type="component_event" id="{uid()}" x="20" y="360">'
+blocks += (f'<block type="component_event" id="{uid()}" x="20" y="800">'
            f'<mutation component_type="Web" is_generic="false" instance_name="Web1" event_name="GotText"></mutation>'
            f'<field name="COMPONENT_SELECTOR">Web1</field>'
            f'<statement name="DO"><block type="controls_if" id="{uid()}"><mutation else="1"></mutation>'

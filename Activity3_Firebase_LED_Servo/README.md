@@ -48,6 +48,20 @@ Firebase, and the ESP32 reads Firebase about 3 times a second.
 
 ## 4. MIT App Inventor app
 
+### Fast way: import the ready-made project
+
+1. Download `Activity3.aia` from this folder.
+2. Go to https://ai2.appinventor.mit.edu → **Projects → Import project (.aia) from my computer** → choose `Activity3.aia`.
+3. In the **Designer**, click **FirebaseDB1** (under Non-visible components) and set:
+   - **FirebaseURL** → *Use Custom* → your database URL (e.g. `https://activity3-1234-default-rtdb.firebaseio.com/`)
+   - **FirebaseToken** → your database secret
+   - **ProjectBucket** → leave it empty
+4. Done. All 13 buttons and their blocks are already set up. Connect with **AI Companion**, or use **Build → Android App (.apk)**.
+
+(To regenerate the .aia, run `python3 make_aia.py`.)
+
+The rest of this section shows how to build the same app by hand.
+
 ### Designer
 
 - **Screen1**: 13 Buttons, as on the whiteboard. A `TableArrangement` (2 columns × 7 rows) keeps them tidy.

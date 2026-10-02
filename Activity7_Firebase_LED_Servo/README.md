@@ -77,27 +77,30 @@ Test mode stops working after 30 days. If you get "permission denied" later, go 
 
 ### 2.2 Import the project
 1. On the laptop, go to https://ai2.appinventor.mit.edu and sign in with your Google account.
-   On first use, accept the **Terms of Service** and close the welcome window.
-2. Download **`Activity7.aia`** from this folder.
-3. Choose **Projects → Import project (.aia) from my computer → Choose File →** `Activity7.aia` **→ OK**.
-4. The project opens in the **Designer**. You'll see a title, 13 buttons and a status label.
+2. If an old **Activity7** project is already there, delete it first:
+   **Projects → My projects**, tick **Activity7**, click **Move To Trash**, then **View Trash → Delete From Trash**.
+3. Download **`Activity7.aia`** from this folder.
+4. Choose **Projects → Import project (.aia) from my computer → Choose File →** `Activity7.aia` **→ OK**.
 
-### 2.3 Connect it to your Firebase
-1. Under the phone preview, in **Non-visible components**, click **FirebaseDB1**.
-2. In the **Properties** panel on the right:
-   - **FirebaseURL**: click the box, choose **Use Custom**, paste your **URL**, and click **OK**.
-   - **FirebaseToken**: delete what's there and paste your **SECRET**.
-   - **ProjectBucket**: delete everything so it's **empty**.
-   - **Persist**: leave it unticked.
-3. Optional: open **Blocks** (top right) to see the blocks. Each button has
-   `call FirebaseDB1.StoreValue  tag "LED1"  valueToStore 1`.
+### 2.3 Check the Firebase URL
+The app sends values with the **Web** component (Firebase REST API). It does **not** use the FirebaseDB
+component, which shows a black screen with non-US databases like `asia-southeast1`.
+
+1. Click **Blocks** (top right).
+2. At the top left you'll see two blocks:
+   - `initialize global FIREBASE_URL to "https://activity7-8fac0-default-rtdb.asia-southeast1.firebasedatabase.app/"`.
+     It must be **your** database URL **with** the `/` at the end.
+   - `initialize global SECRET to ""`. Leave it **empty** while the database rules are in test mode or public (step 1.6).
+     If your rules need a login, paste the database secret here instead.
+3. That's all. Every button calls `sendValue tag value`. The status label shows `Saved: 1` when Firebase accepts the value,
+   or `Error 401: ...` (wrong secret or rules) and `Error 404` (wrong URL).
 
 ### 2.4 Test with AI Companion
 1. On the website, choose **Connect → AI Companion**. A QR code appears.
 2. On the phone, open **MIT AI2 Companion** and tap **scan QR code** (or type the 6-letter code), then **connect with code**.
 3. The app appears on the phone. Press **LED1 ON**.
 4. In the Firebase console, `LED1` should turn to `1` (it flashes yellow or green). ✅
-   If not, check FirebaseURL, FirebaseToken and ProjectBucket (step 2.3).
+   If not, read the status label at the bottom of the app and check step 2.3.
 
 ### 2.5 Install it as a real Android app (.apk)
 1. Choose **Build → Android App (.apk)**. Wait for it to finish (1–2 minutes).
@@ -178,7 +181,9 @@ Test mode stops working after 30 days. If you get "permission denied" later, go 
 | Stuck on `Connecting to WiFi....` | Use **2.4 GHz** Wi-Fi and check the name and password (they're case-sensitive) |
 | `Firebase read failed: permission denied` | The secret is wrong, or test mode has expired (see 1.6) |
 | `Firebase read failed: ... host` / `connection refused` | `DATABASE_URL` still has `https://` or a trailing `/` |
-| App values appear in a sub-folder in Firebase | Clear **ProjectBucket** in FirebaseDB1 |
+| App shows a black screen | You have the old version with FirebaseDB. Import the new `Activity7.aia` and rebuild the .apk |
+| App says `Error 401` | Database rules expired (see 1.6), or SECRET is wrong |
+| App says `Error 404` | FIREBASE_URL is wrong, or it's missing the `/` at the end |
 | AI Companion won't connect | Put the phone and laptop on the same Wi-Fi, or use **Connect → USB** |
 | Android won't install the .apk | Allow **Install unknown apps** for your browser or file manager |
 | ESP32 restarts when the servo moves | Power the servo from a separate 5V supply and connect the grounds |

@@ -71,28 +71,8 @@ def click_block(i, name, text, tag, value):
   </block>
 '''
 
-error_block = f'''  <block type="component_event" id="{uid()}" x="500" y="20">
-    <mutation component_type="FirebaseDB" is_generic="false" instance_name="FirebaseDB1" event_name="FirebaseError"></mutation>
-    <field name="COMPONENT_SELECTOR">FirebaseDB1</field>
-    <statement name="DO">
-      <block type="component_set_get" id="{uid()}">
-        <mutation component_type="Label" set_or_get="set" property_name="Text" is_generic="false" instance_name="lblStatus"></mutation>
-        <field name="COMPONENT_SELECTOR">lblStatus</field>
-        <field name="PROP">Text</field>
-        <value name="VALUE">
-          <block type="lexical_variable_get" id="{uid()}">
-            <mutation><eventparam name="message"></eventparam></mutation>
-            <field name="VAR">message</field>
-          </block>
-        </value>
-      </block>
-    </statement>
-  </block>
-'''
-
 bky = ('<xml xmlns="http://www.w3.org/1999/xhtml">\n'
        + "".join(click_block(i, *b) for i, b in enumerate(BUTTONS))
-       + error_block
        + '  <yacodeblocks ya-version="208" language-version="33"></yacodeblocks>\n</xml>\n')
 
 props = """main=appinventor.ai_student.Activity7.Screen1

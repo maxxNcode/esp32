@@ -97,7 +97,7 @@ Test mode stops working after 30 days. If you get "permission denied" later, go 
 2. On the phone, open **MIT AI2 Companion** and tap **scan QR code** (or type the 6-letter code), then **connect with code**.
 3. The app appears on the phone. Press **LED1 ON**.
 4. In the Firebase console, `LED1` should turn to `1` (it flashes yellow or green). ✅
-   If not, the status label at the bottom of the app shows the Firebase error.
+   If not, check the URL, token and ProjectBucket (step 2.3).
 
 ### 2.5 Install it as a real Android app (.apk)
 1. Choose **Build → Android App (.apk)**. Wait for it to finish (1–2 minutes).

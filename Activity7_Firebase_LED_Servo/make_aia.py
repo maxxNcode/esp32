@@ -163,12 +163,13 @@ blocks += proc("saveOnline", ["tag", "value"],
                         call("Web", "Web1", "PutText", pget("value"))), 150)
 
 # to sendValue tag value:
-#   if Bluetooth connected -> send "TAG:VALUE;" to the ESP32
+#   if Bluetooth connected -> send "TAG:VALUE;\n" to the ESP32 (";" and newline so
+#                             older ESP32 code that waits for a newline works too)
 #   always                 -> save to Firebase (so database, Bluetooth and online stay in sync)
 blocks += proc("sendValue", ["tag", "value"],
                if_only(bt_connected,
                        call("BluetoothClient", "BluetoothClient1", "SendText",
-                            join(pget("tag"), text(":"), pget("value"), text(";"))),
+                            join(pget("tag"), text(":"), pget("value"), text(";\\n"))),
                        call_proc("saveOnline", ["tag", "value"], [pget("tag"), pget("value")],
                                  set_prop("Label", "lblStatus", "Text",
                                           join(text("Sending "), pget("tag"), text(" = "), pget("value"),

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "author": "Exam practice",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-breadboard-half", "id": "bb1", "top": -60, "left": -60, "attrs": {} },
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 230, "left": -40, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r1", "top": -110, "left": -30, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led1", "top": -170, "left": 40, "attrs": { "color": "red" } },
+    { "type": "wokwi-pushbutton", "id": "btn1", "top": -150, "left": 140, "attrs": { "color": "green" } }
+  ],
+  "connections": [
+    [ "uno:5V", "bb1:bp.1", "red", [] ],
+    [ "uno:GND.2", "bb1:bn.2", "black", [] ],
+
+    [ "uno:13", "bb1:5b.j", "green", [] ],
+    [ "r1:1", "bb1:5b.f", "green", [] ],
+    [ "r1:2", "bb1:9b.f", "orange", [] ],
+    [ "led1:A", "bb1:9b.h", "orange", [] ],
+    [ "led1:C", "bb1:10b.h", "black", [] ],
+    [ "bb1:10b.j", "bb1:bn.8", "black", [] ],
+
+    [ "uno:2", "bb1:20b.j", "gold", [] ],
+    [ "btn1:1.l", "bb1:20b.f", "gold", [] ],
+    [ "btn1:2.l", "bb1:22b.f", "black", [] ],
+    [ "bb1:22b.j", "bb1:bn.18", "black", [] ]
+  ],
+  "dependencies": {}
+}

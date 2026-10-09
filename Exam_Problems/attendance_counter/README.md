@@ -96,13 +96,42 @@ it's **common anode**: wire COM to 5V and set `COMMON_ANODE = true` in the code.
    The HC-05 can stay connected, because it uses D10/D11 and not the USB pins D0/D1.
 4. **Serial Monitor** at **9600**. Type `C` and press Enter: it prints the count (a test without the phone).
 
-## Test with the phone (Android)
-1. Install **Serial Bluetooth Terminal** (by Kai Morich) from the Play Store.
-2. Phone **Settings → Bluetooth** → pair **HC-05**, PIN **1234** (or `0000`).
-   The HC-05 LED blinks fast when not connected, and slowly or twice every 2 s once connected.
-3. In the app: **☰ → Devices → Bluetooth Classic → HC-05** → tap **Connect** (plug icon at the top).
-4. Type **`C`** and press send. You get back `Attendance count: 3`.
-5. Press Button 1 a few times, send `C` again, and the number goes up. Press Button 2, send `C`, and you get `0`.
+## MIT App Inventor app (phone side of the Bluetooth)
+
+The app `AttendanceCounter.aia` is ready to import. It has:
+- **SCAN BLUETOOTH**: lists paired devices. Pick **HC-05**.
+- **Bluetooth: Connected** label: green when connected.
+- **DISCONNECT** button.
+- **GET ATTENDANCE COUNT**: sends `C` to the Arduino ("when requested").
+- **Big number**: the count the Arduino sends back. The small text below shows the full reply.
+
+### 1. Pair the HC-05 with the phone (once)
+1. Power the Arduino. The HC-05 LED **blinks fast**.
+2. On the phone, open **Settings → Bluetooth → Pair new device → HC-05**. PIN **1234** (or `0000`).
+
+### 2. Import and run the app
+1. Go to https://ai2.appinventor.mit.edu → **Projects → Import project (.aia) from my computer** → `AttendanceCounter.aia`.
+2. Test it live: **Connect → AI Companion**, then scan the QR code with the **MIT AI2 Companion** app.
+   Or install it: **Build → Android App (.apk)**, then install the .apk on the phone.
+3. In the app, tap **SCAN BLUETOOTH**, **Allow** "Nearby devices" if asked, then pick **HC-05**.
+   The label turns **green**, and the HC-05 LED changes to slow blinking.
+4. Press the **ATTEND** button on the breadboard a few times, then tap **GET ATTENDANCE COUNT**.
+   The big number shows the count, for example **3**.
+5. Press **RESET** on the breadboard, tap **GET ATTENDANCE COUNT** again, and it shows **0**.
+
+### How the app blocks work (to explain to the instructor)
+| Block | What it does |
+|-------|--------------|
+| `when lpBluetooth.BeforePicking` | Fills the list with `BluetoothClient1.AddressesAndNames` (paired devices) |
+| `when lpBluetooth.AfterPicking` | `call BluetoothClient1.Connect` with the selected device, then shows Connected or failed |
+| `when btnGetCount.Click` | If connected: `call BluetoothClient1.SendText "C"`. This is the request |
+| `when Clock1.Timer` (every 200 ms) | If bytes arrived: `ReceiveText -1` reads one line (DelimiterByte = 10 = newline), shows it, and removes "Attendance count:" so only the number is left |
+| `when btnDisconnect.Click` | `call BluetoothClient1.Disconnect` |
+
+### Backup: test without the app
+Install **Serial Bluetooth Terminal** (Play Store), connect to HC-05, send `C`, and it replies `Attendance count: N`.
+
+To regenerate the .aia: `python3 make_aia.py`.
 
 ## Explaining the code to the instructor
 - `wasPressed()` = **debounce + edge detect**: it only returns `true` once, when the button changes from released to pressed and stays steady for 50 ms. That's the "valid press".

@@ -1,6 +1,21 @@
 # Exam Problem 1: Attendance Counter with Bluetooth Reporting (Arduino Uno)
 
-![wiring](wiring.png)
+## Step-by-step breadboard pictures (copy these)
+Each picture adds a few parts. **Bright = do it now, faded = already done.** Yellow tags show the exact hole (like `8b` = column 8, row b).
+
+| Step | Picture |
+|------|---------|
+| 1. Power rails | ![step 1](steps/step1.png) |
+| 2. 7-segment | ![step 2](steps/step2.png) |
+| 3. Buzzer + buttons | ![step 3](steps/step3.png) |
+| 4. HC-05 | ![step 4](steps/step4.png) |
+| 5. LCD | ![step 5](steps/step5.png) |
+| Finished | ![final](steps/final.png) |
+
+> The pictures use **one 220 Ω resistor on the 7-segment COM pin** (7a → blue rail) instead of seven.
+> It's simpler to build and works fine; digits with more segments look slightly dimmer.
+
+Schematic overview: ![wiring](wiring.png)
 
 ## What it does
 | Action | Result |

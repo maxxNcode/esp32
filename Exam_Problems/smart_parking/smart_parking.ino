@@ -23,11 +23,12 @@
 #include <LiquidCrystal_I2C.h>
 
 // ---------- Pins ----------
-const int TRIG_PIN  = 5;    // HC-SR04 Trig
-const int ECHO_PIN  = 18;   // HC-SR04 Echo (through 1k/2k divider)
-const int LED_PIN   = 4;    // availability LED
-const int SERVO_PIN = 13;   // barrier servo signal
-// LCD: SDA = 21, SCL = 22 (ESP32 default I2C pins)
+// Numbers = GPIO numbers = the "G" labels on the board (G5, G18, G4, G13)
+const int TRIG_PIN  = 5;    // G5  -> HC-SR04 Trig
+const int ECHO_PIN  = 18;   // G18 -> HC-SR04 Echo (through 1k/2k divider)
+const int LED_PIN   = 4;    // G4  -> availability LED (through 220 ohm)
+const int SERVO_PIN = 13;   // G13 -> barrier servo signal (orange)
+// LCD: SDA = G21, SCL = G22 (ESP32 default I2C pins). Power from the 5V pin.
 
 // ---------- Settings ----------
 const int OCCUPIED_CM = 10;             // closer than this = car in the slot

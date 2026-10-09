@@ -27,26 +27,32 @@ How each requirement is met:
 - LCD 16x2 with I2C backpack
 - Breadboard, jumper wires (male-female for the ESP32 and LCD)
 
-## Wiring
-| Part | Pin | ESP32 |
-|------|-----|-------|
-| Power | breadboard red **+** rail | **VIN** (5V from USB) |
-| Power | breadboard blue **−** rail | **GND** |
+## Wiring (labels as printed on the 38-pin ESP32 with USB-C)
+**G = GPIO**: `G5` is GPIO 5. A pin labeled only **GND** is ground.
+
+| Part | Pin | ESP32 label |
+|------|-----|-------------|
+| Power | breadboard red **+** rail | **5V** (left side, bottom pin) |
+| Power | breadboard blue **−** rail | **GND** (left side, between G12 and G13) |
 | HC-SR04 | VCC | + rail (5V) |
 | HC-SR04 | GND | − rail |
-| HC-SR04 | Trig | **D5** |
-| HC-SR04 | Echo | 1 kΩ → **D18**, and 2 kΩ from D18 to GND |
-| LED | long leg (+) through 220 Ω | **D4** |
+| HC-SR04 | Trig | **G5** |
+| HC-SR04 | Echo | 1 kΩ → **G18**, and 2 kΩ from G18 to GND |
+| LED | long leg (+) through 220 Ω | **G4** |
 | LED | short leg (−) | − rail |
 | Servo | brown | − rail |
 | Servo | red | + rail |
-| Servo | orange | **D13** |
+| Servo | orange | **G13** |
 | LCD | GND | − rail |
 | LCD | VCC | + rail |
-| LCD | SDA | **D21** |
-| LCD | SCL | **D22** |
+| LCD | SDA | **G21** |
+| LCD | SCL | **G22** |
 
-Use the **pin names printed on your board** (VIN, D5, D18...). On a 38-pin ESP32, the positions are different but the names are the same.
+Board pin order (antenna at the top, USB-C at the bottom):
+- **Left:** 3V3, EN, SP, SN, G34, G35, G32, G33, G25, G26, G27, G14, G12, GND, G13, SD2, SD3, CMD, 5V
+- **Right:** GND, G23, G22, TXD, RXD, G21, GND, G19, G18, G5, G17, G16, G4, G0, G2, G15, SD1, SD0, CLK
+
+⚠️ Never use SD2, SD3, CMD, SD0, SD1 or CLK. They're connected to the board's flash memory.
 
 ## Step-by-step breadboard pictures
 Bright = do it now, faded = already done. Yellow tags = exact hole (`10a` = column 10, row a).
@@ -61,7 +67,7 @@ Bright = do it now, faded = already done. Yellow tags = exact hole (`10a` = colu
 | Finished | ![](steps/final.png) |
 
 ## Upload the code
-1. Arduino IDE → **Tools → Board → esp32 → ESP32 Dev Module**, then **Port → COMx**.
+1. Arduino IDE → **Tools → Board → esp32 → ESP32 Dev Module** (correct for this ESP-32 / WROOM-32 board), then **Port → COMx**.
 2. **Tools → Manage Libraries** → install **ESP32Servo** and **LiquidCrystal I2C** (Frank de Brabander).
    (BluetoothSerial and Wire come with the ESP32 board package.)
 3. Open `smart_parking.ino` → **Upload**. If it gets stuck on `Connecting....`, hold **BOOT**.
@@ -87,6 +93,7 @@ Bright = do it now, faded = already done. Yellow tags = exact hole (`10a` = colu
 | `btnDisconnect.Click` | `BluetoothClient1.Disconnect` |
 
 ## Explaining the ESP32 code
+- Pin numbers in the code are the GPIO numbers: `TRIG_PIN = 5` is the pin labeled **G5**.
 - `readDistanceCm()`: sends a 10 µs Trig pulse, measures the Echo time with `pulseIn`, and converts it to cm (`× 0.034 / 2`).
 - **Every 200 ms:** reads the distance, sets `occupied`, sets the LED, and updates the LCD.
 - **Every 1 s:** sends `AVAILABLE`/`OCCUPIED` to the app over `BluetoothSerial`.
@@ -104,10 +111,10 @@ Bright = do it now, faded = already done. Yellow tags = exact hole (`10a` = colu
 ## Troubleshooting
 | Problem | Fix |
 |---------|-----|
-| Always AVAILABLE | Check Trig = D5, Echo = D18 (through the 1k), VCC = 5V (VIN, not 3V3) |
+| Always AVAILABLE | Check Trig = G5, Echo = G18 (through the 1k), VCC = 5V (not 3V3) |
 | Always OCCUPIED | Something is in front of the sensor, or `OCCUPIED_CM` is too big |
 | `BluetoothSerial.h` error / "Bluetooth not enabled" | Board must be **ESP32 Dev Module** (classic ESP32), not S3/C3 |
 | ESP32_Parking not in the app list | Pair it first in phone Settings → Bluetooth |
 | App connects but shows `---` | Wait 1 s. Check the ESP32 is running (Serial Monitor shows AVAILABLE/OCCUPIED). |
-| Servo jitters / ESP32 restarts | Servo power from VIN (5V), not 3V3. A weak USB port: try another port or cable. |
+| Servo jitters / ESP32 restarts | Servo power from the 5V pin, not 3V3. A weak USB port: try another port or cable. |
 | LCD backlight but no text | Turn the blue contrast screw. Try address `0x3F`. |

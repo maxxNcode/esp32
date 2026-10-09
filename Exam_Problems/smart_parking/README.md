@@ -21,9 +21,9 @@ How each requirement is met:
 
 ## Components
 - ESP32 DevKit (**classic ESP32**: ESP32-WROOM/DevKit V1. ESP32-S3/C3 don't have Bluetooth Classic.)
-- HC-SR04 ultrasonic sensor + **1 kΩ and 2 kΩ** resistors (Echo voltage divider). If you have no 2 kΩ, use two 1 kΩ in series.
+- HC-SR04 ultrasonic sensor
 - SG90 servo
-- 1 LED + **220 Ω** resistor
+- 1 LED (green). **No resistors are needed.** The code limits the LED pin current (`GPIO_DRIVE_CAP_0`, about 5 mA).
 - LCD 16x2 with I2C backpack
 - Breadboard, jumper wires (male-female for the ESP32 and LCD)
 
@@ -37,8 +37,8 @@ How each requirement is met:
 | HC-SR04 | VCC | + rail (5V) |
 | HC-SR04 | GND | − rail |
 | HC-SR04 | Trig | **G5** |
-| HC-SR04 | Echo | 1 kΩ → **G18**, and 2 kΩ from G18 to GND |
-| LED | long leg (+) through 220 Ω | **G4** |
+| HC-SR04 | Echo | **G18** (direct) |
+| LED | long leg (+) | **G4** (direct, no resistor) |
 | LED | short leg (−) | − rail |
 | Servo | brown | − rail |
 | Servo | red | + rail |
@@ -54,13 +54,19 @@ Board pin order (antenna at the top, USB-C at the bottom):
 
 ⚠️ Never use SD2, SD3, CMD, SD0, SD1 or CLK. They're connected to the board's flash memory.
 
+### About not using resistors
+- **LED:** normally needs a 220 Ω resistor. Here the code sets the G4 pin to its weakest drive strength
+  (`gpio_set_drive_capability(..., GPIO_DRIVE_CAP_0)`), which keeps the current low. The LED is a bit dimmer but safe.
+- **Echo:** the HC-SR04 Echo outputs 5V and the ESP32 is a 3.3V chip. Connecting it directly is very common in
+  ESP32 tutorials and works, but it's above the official rating. If you later get resistors, add the 1 kΩ / 2 kΩ divider.
+
 ## Step-by-step breadboard pictures
 Bright = do it now, faded = already done. Yellow tags = exact hole (`10a` = column 10, row a).
 
 | Step | |
 |------|---|
 | 1. Power | ![](steps/step1.png) |
-| 2. Ultrasonic + divider | ![](steps/step2.png) |
+| 2. Ultrasonic | ![](steps/step2.png) |
 | 3. LED | ![](steps/step3.png) |
 | 4. Servo | ![](steps/step4.png) |
 | 5. LCD | ![](steps/step5.png) |
@@ -111,7 +117,7 @@ Bright = do it now, faded = already done. Yellow tags = exact hole (`10a` = colu
 ## Troubleshooting
 | Problem | Fix |
 |---------|-----|
-| Always AVAILABLE | Check Trig = G5, Echo = G18 (through the 1k), VCC = 5V (not 3V3) |
+| Always AVAILABLE | Check Trig = G5, Echo = G18, VCC = 5V (not 3V3) |
 | Always OCCUPIED | Something is in front of the sensor, or `OCCUPIED_CM` is too big |
 | `BluetoothSerial.h` error / "Bluetooth not enabled" | Board must be **ESP32 Dev Module** (classic ESP32), not S3/C3 |
 | ESP32_Parking not in the app list | Pair it first in phone Settings → Bluetooth |

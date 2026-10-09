@@ -21,12 +21,13 @@
 #include <ESP32Servo.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include "driver/gpio.h"     // for the LED current limit (no resistor needed)
 
 // ---------- Pins ----------
 // Numbers = GPIO numbers = the "G" labels on the board (G5, G18, G4, G13)
 const int TRIG_PIN  = 5;    // G5  -> HC-SR04 Trig
-const int ECHO_PIN  = 18;   // G18 -> HC-SR04 Echo (through 1k/2k divider)
-const int LED_PIN   = 4;    // G4  -> availability LED (through 220 ohm)
+const int ECHO_PIN  = 18;   // G18 -> HC-SR04 Echo (direct)
+const int LED_PIN   = 4;    // G4  -> availability LED long leg (no resistor)
 const int SERVO_PIN = 13;   // G13 -> barrier servo signal (orange)
 // LCD: SDA = G21, SCL = G22 (ESP32 default I2C pins). Power from the 5V pin.
 
@@ -134,6 +135,8 @@ void setup() {
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);
+  // No resistor on the LED: use the weakest pin drive (~5 mA) to protect LED and ESP32
+  gpio_set_drive_capability((gpio_num_t)LED_PIN, GPIO_DRIVE_CAP_0);
 
   gate.setPeriodHertz(50);
   gate.attach(SERVO_PIN, 500, 2400);
